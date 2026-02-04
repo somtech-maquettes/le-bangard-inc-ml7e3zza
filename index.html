@@ -150,7 +150,31 @@
       { id: 2, nom: "Pâtes fraîches aux œufs", rendement: "5kg", tempsCuisson: "30min", cout: 15.00, prixSuggere: 50.00, ingredients: [
         { nom: "Farine", quantite: 4, unite: "kg", cout: 8 },
         { nom: "Œufs", quantite: 20, unite: "unités", cout: 7 }
-      ], allergenes: ["Gluten", "Œufs"], etapes: ["Mélanger farine et œufs", "Pétrir 10 minutes", "Laisser reposer", "Laminer"] }
+      ], allergenes: ["Gluten", "Œufs"], etapes: ["Mélanger farine et œufs", "Pétrir 10 minutes", "Laisser reposer", "Laminer"] },
+      { id: 3, nom: "Soupe à l'oignon gratinée", rendement: "20 portions", tempsCuisson: "2h", cout: 25.00, prixSuggere: 100.00, ingredients: [
+        { nom: "Oignons", quantite: 5, unite: "kg", cout: 5 },
+        { nom: "Bouillon de bœuf", quantite: 10, unite: "L", cout: 8 },
+        { nom: "Fromage Gruyère", quantite: 1, unite: "kg", cout: 12 }
+      ], allergenes: ["Lait", "Gluten"], etapes: ["Caraméliser les oignons", "Ajouter le bouillon", "Gratiner au four avec fromage"] },
+      { id: 4, nom: "Salade César", rendement: "15 portions", tempsCuisson: "20min", cout: 30.00, prixSuggere: 120.00, ingredients: [
+        { nom: "Laitue romaine", quantite: 3, unite: "kg", cout: 9 },
+        { nom: "Parmesan", quantite: 500, unite: "g", cout: 10 },
+        { nom: "Croûtons", quantite: 1, unite: "kg", cout: 5 },
+        { nom: "Sauce César", quantite: 1, unite: "L", cout: 6 }
+      ], allergenes: ["Gluten", "Lait", "Œufs", "Poisson"], etapes: ["Laver et couper la laitue", "Préparer la sauce", "Assembler et servir"] },
+      { id: 5, nom: "Tiramisu traditionnel", rendement: "30 portions", tempsCuisson: "45min", cout: 40.00, prixSuggere: 180.00, ingredients: [
+        { nom: "Mascarpone", quantite: 2, unite: "kg", cout: 20 },
+        { nom: "Biscuits ladyfinger", quantite: 1, unite: "kg", cout: 8 },
+        { nom: "Café espresso", quantite: 1, unite: "L", cout: 5 },
+        { nom: "Cacao en poudre", quantite: 200, unite: "g", cout: 3 },
+        { nom: "Œufs", quantite: 20, unite: "unités", cout: 4 }
+      ], allergenes: ["Œufs", "Lait", "Gluten"], etapes: ["Préparer le café", "Monter les blancs en neige", "Mélanger mascarpone et jaunes", "Assembler en couches", "Réfrigérer 4h minimum"] },
+      { id: 6, nom: "Risotto aux champignons", rendement: "25 portions", tempsCuisson: "1h30", cout: 35.00, prixSuggere: 140.00, ingredients: [
+        { nom: "Riz arborio", quantite: 2, unite: "kg", cout: 10 },
+        { nom: "Champignons mélangés", quantite: 2, unite: "kg", cout: 15 },
+        { nom: "Bouillon de légumes", quantite: 8, unite: "L", cout: 6 },
+        { nom: "Parmesan", quantite: 500, unite: "g", cout: 4 }
+      ], allergenes: ["Lait"], etapes: ["Faire sauter les champignons", "Toaster le riz", "Ajouter le bouillon progressivement", "Finir avec beurre et parmesan"] }
     ];
 
     const mockInventaire = [
@@ -1464,66 +1488,801 @@
       );
 
       // Liste des recettes
-      const RecettesList = () => (
-        <div className="space-y-6 animate-fade-in">
-          <div className="flex items-center justify-between mb-6">
-            <h1 className="text-3xl font-display font-bold text-white">Recettes</h1>
-            <Button>
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Nouvelle recette
-            </Button>
-          </div>
+      const RecettesList = () => {
+        const [searchTerm, setSearchTerm] = React.useState('');
+        const [filterAllergene, setFilterAllergene] = React.useState('all');
+        const [sortBy, setSortBy] = React.useState('nom');
+        const [viewMode, setViewMode] = React.useState('grid'); // grid ou list
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {mockRecettes.map((recette) => {
-              const marge = ((recette.prixSuggere - recette.cout) / recette.prixSuggere * 100).toFixed(0);
-              return (
-                <Card
-                  key={recette.id}
-                  className="p-6 hover:shadow-xl transition-all duration-300 cursor-pointer"
-                  onClick={() => goToDetail('recette', recette.id)}
+        // Obtenir tous les allergènes uniques
+        const allAllergenes = [...new Set(mockRecettes.flatMap(r => r.allergenes))];
+
+        // Filtrer et trier les recettes
+        const filteredRecettes = mockRecettes
+          .filter(recette => {
+            const matchesSearch = recette.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                 recette.ingredients.some(ing => ing.nom.toLowerCase().includes(searchTerm.toLowerCase()));
+            const matchesAllergene = filterAllergene === 'all' || recette.allergenes.includes(filterAllergene);
+            return matchesSearch && matchesAllergene;
+          })
+          .sort((a, b) => {
+            switch (sortBy) {
+              case 'nom': return a.nom.localeCompare(b.nom);
+              case 'cout': return a.cout - b.cout;
+              case 'marge':
+                const margeA = ((a.prixSuggere - a.cout) / a.prixSuggere * 100);
+                const margeB = ((b.prixSuggere - b.cout) / b.prixSuggere * 100);
+                return margeB - margeA;
+              default: return 0;
+            }
+          });
+
+        return (
+          <div className="space-y-6 animate-fade-in">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
+              <h1 className="text-3xl font-display font-bold text-white">Recettes</h1>
+              <div className="flex gap-3">
+                <Button variant="secondary">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+                  Importer
+                </Button>
+                <Button>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Nouvelle recette
+                </Button>
+              </div>
+            </div>
+
+            {/* Barre de filtres et recherche */}
+            <Card className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="md:col-span-2">
+                  <input
+                    type="text"
+                    placeholder="Rechercher par nom ou ingrédient..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-amber-500 transition-colors"
+                  />
+                </div>
+
+                <select
+                  value={filterAllergene}
+                  onChange={(e) => setFilterAllergene(e.target.value)}
+                  className="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-amber-500 transition-colors"
                 >
-                  <h3 className="text-lg font-display font-semibold text-white mb-2">{recette.nom}</h3>
+                  <option value="all">Tous les allergènes</option>
+                  {allAllergenes.map(allergene => (
+                    <option key={allergene} value={allergene}>{allergene}</option>
+                  ))}
+                </select>
 
-                  <div className="space-y-3 mb-4">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-400">Rendement</span>
-                      <span className="text-white">{recette.rendement}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-400">Temps cuisson</span>
-                      <span className="text-white">{recette.tempsCuisson}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-400">Coût</span>
-                      <span className="text-white">{recette.cout.toFixed(2)} $</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-400">Prix suggéré</span>
-                      <span className="text-white font-medium">{recette.prixSuggere.toFixed(2)} $</span>
-                    </div>
-                  </div>
+                <div className="flex gap-2">
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-amber-500 transition-colors"
+                  >
+                    <option value="nom">Nom</option>
+                    <option value="cout">Coût</option>
+                    <option value="marge">Marge</option>
+                  </select>
 
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-700">
-                    <Badge variant={marge >= 65 ? 'success' : 'warning'}>
-                      Marge {marge}%
-                    </Badge>
-                    <div className="flex gap-1">
-                      {recette.allergenes.map((allergene, index) => (
-                        <span key={index} className="text-xs text-red-400">
-                          {allergene}
-                        </span>
-                      ))}
-                    </div>
+                  <div className="flex bg-gray-800 rounded-lg border border-gray-700 p-1">
+                    <button
+                      onClick={() => setViewMode('grid')}
+                      className={`p-2 rounded ${viewMode === 'grid' ? 'bg-amber-500 text-black' : 'text-gray-400 hover:text-white'} transition-colors`}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => setViewMode('list')}
+                      className={`p-2 rounded ${viewMode === 'list' ? 'bg-amber-500 text-black' : 'text-gray-400 hover:text-white'} transition-colors`}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                      </svg>
+                    </button>
                   </div>
-                </Card>
-              );
-            })}
+                </div>
+              </div>
+
+              {/* Statistiques rapides */}
+              <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-gray-700">
+                <div className="text-sm">
+                  <span className="text-gray-400">Total:</span>
+                  <span className="ml-2 text-white font-medium">{filteredRecettes.length} recettes</span>
+                </div>
+                <div className="text-sm">
+                  <span className="text-gray-400">Coût moyen:</span>
+                  <span className="ml-2 text-white font-medium">
+                    {(filteredRecettes.reduce((sum, r) => sum + r.cout, 0) / filteredRecettes.length || 0).toFixed(2)} $
+                  </span>
+                </div>
+                <div className="text-sm">
+                  <span className="text-gray-400">Marge moyenne:</span>
+                  <span className="ml-2 text-white font-medium">
+                    {(filteredRecettes.reduce((sum, r) => sum + ((r.prixSuggere - r.cout) / r.prixSuggere * 100), 0) / filteredRecettes.length || 0).toFixed(0)}%
+                  </span>
+                </div>
+              </div>
+            </Card>
+
+            {/* Vue en grille */}
+            {viewMode === 'grid' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredRecettes.map((recette) => {
+                  const marge = ((recette.prixSuggere - recette.cout) / recette.prixSuggere * 100).toFixed(0);
+                  return (
+                    <Card
+                      key={recette.id}
+                      className="p-6 hover:shadow-xl transition-all duration-300 cursor-pointer group"
+                      onClick={() => goToDetail('recette', recette.id)}
+                    >
+                      <div className="flex justify-between items-start mb-3">
+                        <h3 className="text-lg font-display font-semibold text-white group-hover:text-amber-500 transition-colors">{recette.nom}</h3>
+                        <Badge variant={marge >= 65 ? 'success' : 'warning'} className="text-xs">
+                          {marge}%
+                        </Badge>
+                      </div>
+
+                      <div className="space-y-3 mb-4">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-400">Rendement</span>
+                          <span className="text-white">{recette.rendement}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-400">Temps cuisson</span>
+                          <span className="text-white">{recette.tempsCuisson}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-400">Coût / Prix</span>
+                          <span className="text-white">
+                            <span className="text-gray-400">{recette.cout.toFixed(2)} $</span>
+                            <span className="mx-1">/</span>
+                            <span className="font-medium text-amber-500">{recette.prixSuggere.toFixed(2)} $</span>
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Aperçu des ingrédients */}
+                      <div className="mb-4">
+                        <p className="text-xs text-gray-400 mb-2">Ingrédients principaux:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {recette.ingredients.slice(0, 3).map((ing, index) => (
+                            <span key={index} className="text-xs bg-gray-800 px-2 py-1 rounded">
+                              {ing.nom}
+                            </span>
+                          ))}
+                          {recette.ingredients.length > 3 && (
+                            <span className="text-xs text-gray-500">+{recette.ingredients.length - 3}</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-4 border-t border-gray-700">
+                        <div className="flex gap-2">
+                          {recette.allergenes.map((allergene, index) => (
+                            <span key={index} className="text-xs text-red-400" title={`Contient: ${allergene}`}>
+                              ⚠️ {allergene}
+                            </span>
+                          ))}
+                        </div>
+                        <svg className="w-5 h-5 text-gray-400 group-hover:text-amber-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Vue en liste */}
+            {viewMode === 'list' && (
+              <Card className="overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-900 border-b border-gray-700">
+                      <tr>
+                        <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Recette</th>
+                        <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Rendement</th>
+                        <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Temps</th>
+                        <th className="px-6 py-4 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Ingrédients</th>
+                        <th className="px-6 py-4 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Coût</th>
+                        <th className="px-6 py-4 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Prix</th>
+                        <th className="px-6 py-4 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Marge</th>
+                        <th className="px-6 py-4 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-700">
+                      {filteredRecettes.map((recette) => {
+                        const marge = ((recette.prixSuggere - recette.cout) / recette.prixSuggere * 100).toFixed(0);
+                        return (
+                          <tr
+                            key={recette.id}
+                            onClick={() => goToDetail('recette', recette.id)}
+                            className="hover:bg-gray-800 cursor-pointer transition-colors"
+                          >
+                            <td className="px-6 py-4">
+                              <div>
+                                <p className="text-white font-medium">{recette.nom}</p>
+                                <div className="flex gap-2 mt-1">
+                                  {recette.allergenes.map((allergene, index) => (
+                                    <span key={index} className="text-xs text-red-400">
+                                      {allergene}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-300">{recette.rendement}</td>
+                            <td className="px-6 py-4 text-sm text-gray-300">{recette.tempsCuisson}</td>
+                            <td className="px-6 py-4 text-center">
+                              <span className="text-sm text-gray-300">{recette.ingredients.length}</span>
+                            </td>
+                            <td className="px-6 py-4 text-right text-sm text-gray-300">{recette.cout.toFixed(2)} $</td>
+                            <td className="px-6 py-4 text-right text-sm font-medium text-amber-500">{recette.prixSuggere.toFixed(2)} $</td>
+                            <td className="px-6 py-4 text-center">
+                              <Badge variant={marge >= 65 ? 'success' : 'warning'}>
+                                {marge}%
+                              </Badge>
+                            </td>
+                            <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex justify-center gap-2">
+                                <button className="text-gray-400 hover:text-white transition-colors p-1">
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                  </svg>
+                                </button>
+                                <button className="text-gray-400 hover:text-white transition-colors p-1">
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            )}
           </div>
-        </div>
-      );
+        );
+      };
+
+      // Détail recette (NIVEAU 2)
+      const RecetteDetail = ({ recetteId }) => {
+        const recette = mockRecettes.find(r => r.id === recetteId);
+        if (!recette) return <div className="text-white">Recette non trouvée</div>;
+
+        const coutIngredient = recette.ingredients.reduce((total, ing) => total + ing.cout, 0);
+        const marge = ((recette.prixSuggere - recette.cout) / recette.prixSuggere * 100).toFixed(0);
+        const margeValeur = recette.prixSuggere - recette.cout;
+
+        return (
+          <div className="space-y-6 animate-fade-in">
+            <BackButton onClick={() => goToList('recette')} label="Retour aux recettes" />
+
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-display font-bold text-white mb-2">{recette.nom}</h1>
+                <div className="flex flex-wrap gap-2">
+                  {recette.allergenes.map((allergene, index) => (
+                    <Badge key={index} variant="error">
+                      ⚠️ {allergene}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-col md:flex-row gap-3">
+                <Button variant="secondary" onClick={() => goToEdit('recette', recetteId)}>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Modifier
+                </Button>
+                <Button>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  Dupliquer recette
+                </Button>
+              </div>
+            </div>
+
+            {/* Métriques principales */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card className="bg-gradient-to-br from-gray-800 to-gray-900 p-6">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-gray-400 text-sm">Rendement</p>
+                  <span className="text-2xl">📊</span>
+                </div>
+                <p className="text-2xl font-bold text-white">{recette.rendement}</p>
+                <p className="text-xs text-gray-500 mt-1">Quantité produite</p>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-gray-800 to-gray-900 p-6">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-gray-400 text-sm">Temps total</p>
+                  <span className="text-2xl">⏱️</span>
+                </div>
+                <p className="text-2xl font-bold text-white">{recette.tempsCuisson}</p>
+                <p className="text-xs text-gray-500 mt-1">Préparation + cuisson</p>
+              </Card>
+
+              <Card className={`bg-gradient-to-br p-6 ${marge >= 65 ? 'from-green-900 to-green-950' : 'from-yellow-900 to-yellow-950'}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-gray-400 text-sm">Marge brute</p>
+                  <span className="text-2xl">💰</span>
+                </div>
+                <p className="text-2xl font-bold text-white">{marge}%</p>
+                <p className="text-xs text-gray-300 mt-1">{margeValeur.toFixed(2)} $ de profit</p>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-gray-800 to-gray-900 p-6">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-gray-400 text-sm">Coût / Prix</p>
+                  <span className="text-2xl">💸</span>
+                </div>
+                <p className="text-2xl font-bold text-white">{recette.cout.toFixed(2)} $</p>
+                <p className="text-xs text-green-400 mt-1">Prix: {recette.prixSuggere.toFixed(2)} $</p>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Liste des ingrédients */}
+              <Card className="p-0">
+                <div className="p-6 border-b border-gray-700">
+                  <h3 className="text-lg font-display font-semibold text-white">Ingrédients</h3>
+                  <p className="text-sm text-gray-400 mt-1">Coût total: {coutIngredient.toFixed(2)} $</p>
+                </div>
+                <div className="divide-y divide-gray-700">
+                  {recette.ingredients.map((ingredient, index) => (
+                    <div key={index} className="p-4 hover:bg-gray-800 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-white font-medium">{ingredient.nom}</p>
+                          <p className="text-sm text-gray-400">{ingredient.quantite} {ingredient.unite}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-white font-medium">{ingredient.cout.toFixed(2)} $</p>
+                          <p className="text-xs text-gray-500">{((ingredient.cout / coutIngredient) * 100).toFixed(0)}% du coût</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+
+              {/* Étapes de préparation */}
+              <Card className="p-0">
+                <div className="p-6 border-b border-gray-700">
+                  <h3 className="text-lg font-display font-semibold text-white">Étapes de préparation</h3>
+                  <p className="text-sm text-gray-400 mt-1">{recette.etapes.length} étapes</p>
+                </div>
+                <div className="p-6">
+                  <ol className="space-y-4">
+                    {recette.etapes.map((etape, index) => (
+                      <li key={index} className="flex gap-3">
+                        <span className="flex-shrink-0 w-8 h-8 bg-amber-500 text-black rounded-full flex items-center justify-center font-bold text-sm">
+                          {index + 1}
+                        </span>
+                        <p className="text-gray-300 pt-1">{etape}</p>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              </Card>
+            </div>
+
+            {/* Section d'analyse */}
+            <Card className="p-6">
+              <h3 className="text-lg font-display font-semibold text-white mb-4">Analyse de rentabilité</h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <p className="text-sm text-gray-400 mb-2">Répartition des coûts</p>
+                  <div className="space-y-2">
+                    {recette.ingredients.map((ing, index) => {
+                      const percentage = (ing.cout / coutIngredient) * 100;
+                      return (
+                        <div key={index}>
+                          <div className="flex justify-between text-sm mb-1">
+                            <span className="text-gray-300">{ing.nom}</span>
+                            <span className="text-gray-400">{percentage.toFixed(0)}%</span>
+                          </div>
+                          <div className="w-full bg-gray-700 rounded-full h-2">
+                            <div
+                              className="bg-amber-500 h-2 rounded-full transition-all duration-500"
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-sm text-gray-400 mb-2">Suggestions de prix</p>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-gray-300">Prix minimum (50% marge)</span>
+                      <span className="text-white font-medium">{(recette.cout * 2).toFixed(2)} $</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-300">Prix actuel ({marge}% marge)</span>
+                      <span className="text-amber-500 font-medium">{recette.prixSuggere.toFixed(2)} $</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-300">Prix premium (75% marge)</span>
+                      <span className="text-white font-medium">{(recette.cout * 4).toFixed(2)} $</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-sm text-gray-400 mb-2">Informations nutritionnelles</p>
+                  <p className="text-xs text-gray-500 italic">Fonctionnalité à venir</p>
+                  <Button variant="secondary" className="mt-3 w-full">
+                    Calculer les valeurs nutritives
+                  </Button>
+                </div>
+              </div>
+            </Card>
+
+            {/* Actions supplémentaires */}
+            <div className="flex flex-wrap gap-3">
+              <Button variant="secondary">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                </svg>
+                Imprimer la recette
+              </Button>
+              <Button variant="secondary">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                </svg>
+                Exporter PDF
+              </Button>
+              <Button variant="secondary">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                Historique des versions
+              </Button>
+              <Button variant="danger">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Supprimer
+              </Button>
+            </div>
+          </div>
+        );
+      };
+
+      // Édition recette (NIVEAU 2)
+      const RecetteEdit = ({ recetteId }) => {
+        const recetteInitiale = recetteId ? mockRecettes.find(r => r.id === recetteId) : null;
+
+        const [recette, setRecette] = React.useState(recetteInitiale || {
+          nom: '',
+          rendement: '',
+          tempsCuisson: '',
+          cout: 0,
+          prixSuggere: 0,
+          ingredients: [{ nom: '', quantite: 0, unite: '', cout: 0 }],
+          allergenes: [],
+          etapes: ['']
+        });
+
+        const [showAllergenesMenu, setShowAllergenesMenu] = React.useState(false);
+        const allergenesOptions = ['Gluten', 'Œufs', 'Lait', 'Fruits à coque', 'Arachides', 'Soja', 'Poisson', 'Crustacés'];
+
+        // Calculer le coût total
+        React.useEffect(() => {
+          const coutTotal = recette.ingredients.reduce((sum, ing) => sum + (parseFloat(ing.cout) || 0), 0);
+          setRecette(prev => ({ ...prev, cout: coutTotal }));
+        }, [recette.ingredients]);
+
+        const handleIngredientChange = (index, field, value) => {
+          const newIngredients = [...recette.ingredients];
+          newIngredients[index] = { ...newIngredients[index], [field]: value };
+          setRecette({ ...recette, ingredients: newIngredients });
+        };
+
+        const addIngredient = () => {
+          setRecette({
+            ...recette,
+            ingredients: [...recette.ingredients, { nom: '', quantite: 0, unite: '', cout: 0 }]
+          });
+        };
+
+        const removeIngredient = (index) => {
+          const newIngredients = recette.ingredients.filter((_, i) => i !== index);
+          setRecette({ ...recette, ingredients: newIngredients });
+        };
+
+        const handleEtapeChange = (index, value) => {
+          const newEtapes = [...recette.etapes];
+          newEtapes[index] = value;
+          setRecette({ ...recette, etapes: newEtapes });
+        };
+
+        const addEtape = () => {
+          setRecette({ ...recette, etapes: [...recette.etapes, ''] });
+        };
+
+        const removeEtape = (index) => {
+          const newEtapes = recette.etapes.filter((_, i) => i !== index);
+          setRecette({ ...recette, etapes: newEtapes });
+        };
+
+        const toggleAllergene = (allergene) => {
+          setRecette(prev => ({
+            ...prev,
+            allergenes: prev.allergenes.includes(allergene)
+              ? prev.allergenes.filter(a => a !== allergene)
+              : [...prev.allergenes, allergene]
+          }));
+        };
+
+        const marge = recette.prixSuggere > 0 ? ((recette.prixSuggere - recette.cout) / recette.prixSuggere * 100).toFixed(0) : 0;
+
+        return (
+          <div className="space-y-6 animate-fade-in">
+            <BackButton
+              onClick={() => recetteId ? goToDetail('recette', recetteId) : goToList('recette')}
+              label={recetteId ? "Retour aux détails" : "Retour aux recettes"}
+            />
+
+            <div className="flex items-center justify-between">
+              <h1 className="text-3xl font-display font-bold text-white">
+                {recetteId ? 'Modifier la recette' : 'Nouvelle recette'}
+              </h1>
+            </div>
+
+            <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
+              {/* Informations générales */}
+              <Card className="p-6">
+                <h3 className="text-lg font-display font-semibold text-white mb-4">Informations générales</h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">Nom de la recette *</label>
+                    <input
+                      type="text"
+                      value={recette.nom}
+                      onChange={(e) => setRecette({ ...recette, nom: e.target.value })}
+                      className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-amber-500"
+                      placeholder="Ex: Sauce bolognaise maison"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">Rendement *</label>
+                    <input
+                      type="text"
+                      value={recette.rendement}
+                      onChange={(e) => setRecette({ ...recette, rendement: e.target.value })}
+                      className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-amber-500"
+                      placeholder="Ex: 10L, 5kg, 20 portions"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">Temps de préparation *</label>
+                    <input
+                      type="text"
+                      value={recette.tempsCuisson}
+                      onChange={(e) => setRecette({ ...recette, tempsCuisson: e.target.value })}
+                      className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-amber-500"
+                      placeholder="Ex: 4h, 30min"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">Prix suggéré *</label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={recette.prixSuggere}
+                        onChange={(e) => setRecette({ ...recette, prixSuggere: parseFloat(e.target.value) || 0 })}
+                        className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-amber-500 pr-12"
+                        placeholder="0.00"
+                        required
+                      />
+                      <span className="absolute right-3 top-2.5 text-gray-400">$</span>
+                    </div>
+                    {recette.cout > 0 && (
+                      <p className="mt-1 text-sm text-gray-400">
+                        Coût: {recette.cout.toFixed(2)} $ •
+                        Marge: <span className={marge >= 65 ? 'text-green-400' : 'text-yellow-400'}>{marge}%</span>
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Allergènes */}
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-400 mb-2">Allergènes</label>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowAllergenesMenu(!showAllergenesMenu)}
+                      className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-left focus:outline-none focus:border-amber-500 flex items-center justify-between"
+                    >
+                      <span className={recette.allergenes.length === 0 ? 'text-gray-500' : ''}>
+                        {recette.allergenes.length === 0 ? 'Sélectionner les allergènes' : recette.allergenes.join(', ')}
+                      </span>
+                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+
+                    {showAllergenesMenu && (
+                      <div className="absolute z-10 w-full mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl">
+                        {allergenesOptions.map(allergene => (
+                          <label
+                            key={allergene}
+                            className="flex items-center px-4 py-2 hover:bg-gray-700 cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={recette.allergenes.includes(allergene)}
+                              onChange={() => toggleAllergene(allergene)}
+                              className="mr-3"
+                            />
+                            <span className="text-white">{allergene}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </Card>
+
+              {/* Ingrédients */}
+              <Card className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-display font-semibold text-white">Ingrédients</h3>
+                    <p className="text-sm text-gray-400 mt-1">Coût total: {recette.cout.toFixed(2)} $</p>
+                  </div>
+                  <Button type="button" onClick={addIngredient} variant="secondary">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Ajouter
+                  </Button>
+                </div>
+
+                <div className="space-y-3">
+                  {recette.ingredients.map((ingredient, index) => (
+                    <div key={index} className="flex gap-3">
+                      <input
+                        type="text"
+                        value={ingredient.nom}
+                        onChange={(e) => handleIngredientChange(index, 'nom', e.target.value)}
+                        className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-amber-500"
+                        placeholder="Nom de l'ingrédient"
+                      />
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={ingredient.quantite}
+                        onChange={(e) => handleIngredientChange(index, 'quantite', parseFloat(e.target.value) || 0)}
+                        className="w-24 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-amber-500"
+                        placeholder="Qté"
+                      />
+                      <input
+                        type="text"
+                        value={ingredient.unite}
+                        onChange={(e) => handleIngredientChange(index, 'unite', e.target.value)}
+                        className="w-24 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-amber-500"
+                        placeholder="Unité"
+                      />
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={ingredient.cout}
+                        onChange={(e) => handleIngredientChange(index, 'cout', parseFloat(e.target.value) || 0)}
+                        className="w-24 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-amber-500"
+                        placeholder="Coût $"
+                      />
+                      {recette.ingredients.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeIngredient(index)}
+                          className="p-2 text-red-400 hover:text-red-300 transition-colors"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </Card>
+
+              {/* Étapes de préparation */}
+              <Card className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-display font-semibold text-white">Étapes de préparation</h3>
+                  <Button type="button" onClick={addEtape} variant="secondary">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Ajouter
+                  </Button>
+                </div>
+
+                <div className="space-y-3">
+                  {recette.etapes.map((etape, index) => (
+                    <div key={index} className="flex gap-3">
+                      <span className="flex-shrink-0 w-8 h-8 bg-amber-500 text-black rounded-full flex items-center justify-center font-bold text-sm mt-2">
+                        {index + 1}
+                      </span>
+                      <textarea
+                        value={etape}
+                        onChange={(e) => handleEtapeChange(index, e.target.value)}
+                        className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-amber-500 resize-none"
+                        placeholder="Décrivez l'étape..."
+                        rows="2"
+                      />
+                      {recette.etapes.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeEtape(index)}
+                          className="p-2 text-red-400 hover:text-red-300 transition-colors"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </Card>
+
+              {/* Actions */}
+              <div className="flex justify-end gap-3">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => recetteId ? goToDetail('recette', recetteId) : goToList('recette')}
+                >
+                  Annuler
+                </Button>
+                <Button type="submit">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  {recetteId ? 'Enregistrer les modifications' : 'Créer la recette'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        );
+      };
 
       // Liste des fournisseurs
       const FournisseursList = () => (
@@ -1816,7 +2575,17 @@
               {activeTab === 'commandes' && <CommandesList />}
               {activeTab === 'produits' && <ProduitsList />}
               {activeTab === 'inventaire' && <InventaireList />}
-              {activeTab === 'recettes' && <RecettesList />}
+              {activeTab === 'recettes' && (
+                <>
+                  {view.screen === 'list' && <RecettesList />}
+                  {view.screen === 'detail' && view.entityType === 'recette' && (
+                    <RecetteDetail recetteId={view.entityId} />
+                  )}
+                  {view.screen === 'edit' && view.entityType === 'recette' && (
+                    <RecetteEdit recetteId={view.entityId} />
+                  )}
+                </>
+              )}
               {activeTab === 'fournisseurs' && <FournisseursList />}
               {activeTab === 'employes' && <EmployesList />}
               {activeTab === 'evenements' && <EvenementsList />}
