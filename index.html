@@ -1,0 +1,1834 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Maquette</title>
+
+  <!-- Google Fonts selon le Design Brief -->
+  <link href="https://fonts.googleapis.com/css2?family=Quattrocento:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Leaflet CSS (pour cartes si nécessaire) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <style>
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #f1f1f1; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    /* Polices du Design Brief */
+    .font-display { font-family: 'Quattrocento', serif; }
+    .font-body { font-family: 'Quattrocento', sans-serif; }
+
+    /* Appliquer la police body par défaut */
+    body { font-family: 'Quattrocento', sans-serif; }
+
+    /* Animation de base pour les entrées */
+    @keyframes fade-in-up {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in-up {
+      animation: fade-in-up 0.5s ease-out forwards;
+      opacity: 0;
+    }
+
+    /* Animation de fade simple */
+    @keyframes fade-in {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .animate-fade-in {
+      animation: fade-in 0.3s ease-out forwards;
+    }
+
+    /* Animation scale */
+    @keyframes scale-in {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .animate-scale-in {
+      animation: scale-in 0.3s ease-out forwards;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- CHARGEMENT SÉQUENTIEL DES CDN - NE PAS MODIFIER -->
+  <script>
+    (function() {
+      var scripts = [
+        'https://unpkg.com/react@18/umd/react.production.min.js',
+        'https://unpkg.com/react-dom@18/umd/react-dom.production.min.js',
+        'https://unpkg.com/prop-types@15/prop-types.min.js',
+        'https://unpkg.com/recharts@2.12.7/umd/Recharts.js',
+        'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
+        'https://unpkg.com/@babel/standalone/babel.min.js'
+      ];
+      var index = 0;
+      function loadNext() {
+        if (index >= scripts.length) {
+          if (typeof Babel !== 'undefined' && Babel.transformScriptTags) {
+            Babel.transformScriptTags();
+          }
+          return;
+        }
+        var script = document.createElement('script');
+        script.src = scripts[index];
+        script.onload = function() { index++; loadNext(); };
+        script.onerror = function() { console.error('Erreur CDN: ' + scripts[index]); };
+        document.body.appendChild(script);
+      }
+      loadNext();
+    })();
+  </script>
+
+  <script type="text/babel">
+    // OBLIGATOIRE: Destructurer Recharts (NE PAS SUPPRIMER)
+    const { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area,
+            XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } = Recharts;
+
+    // ============================================================
+    // APPLICATION LE BANGARD INC. - LABORATOIRE ALIMENTAIRE
+    // Design basé sur la charte graphique élégante et raffinée
+    // ============================================================
+
+    // DONNÉES MOCKÉES QUÉBÉCOISES
+    const mockClients = [
+      { id: 1, nom: "Restaurant Chez Marcel", contact: "Marcel Tremblay", email: "marcel@chezmarcel.ca", telephone: "(514) 555-0123", adresse: "1234 rue St-Denis, Montréal", type: "B2B", totalAchats: 45780, solde: 0, allergenes: ["Noix", "Gluten"], creditLimite: 10000, conditions: "Net 30" },
+      { id: 2, nom: "Épicerie Gagnon & Fils", contact: "Sophie Gagnon", email: "sophie@epiceriegagnon.ca", telephone: "(450) 555-0456", adresse: "5678 boul. Taschereau, Brossard", type: "B2B", totalAchats: 32150, solde: 2300, allergenes: [], creditLimite: 15000, conditions: "Net 45" },
+      { id: 3, nom: "Traiteur La Belle Époque", contact: "Marie Lavoie", email: "marie@belleepoque.ca", telephone: "(418) 555-0789", adresse: "910 rue Saint-Jean, Québec", type: "B2B", totalAchats: 67890, solde: 0, allergenes: ["Arachides"], creditLimite: 20000, conditions: "Net 30" },
+      { id: 4, nom: "Café Le Petit Coin", contact: "Pierre Bouchard", email: "pierre@petitcoin.ca", telephone: "(514) 555-0234", adresse: "2345 ave. Papineau, Montréal", type: "B2B", totalAchats: 23450, solde: 500, allergenes: ["Lactose", "Soja"], creditLimite: 5000, conditions: "Paiement comptant" },
+      { id: 5, nom: "Bistro Saint-Laurent", contact: "Jean-François Côté", email: "jf@bistrostlaurent.ca", telephone: "(514) 555-0567", adresse: "3456 boul. Saint-Laurent, Montréal", type: "B2B", totalAchats: 89012, solde: 0, allergenes: [], creditLimite: 25000, conditions: "Net 30" }
+    ];
+
+    const mockCommandes = [
+      { id: 101, clientId: 1, numero: "CMD-2024-101", date: "2024-02-01", livraison: "2024-02-05", montant: 3450.00, statut: "En préparation", type: "Récurrente", items: [
+        { nom: "Sauce bolognaise", quantite: "10L", prix: 150 },
+        { nom: "Pâtes fraîches", quantite: "20kg", prix: 200 },
+        { nom: "Salade César", quantite: "50 portions", prix: 500 }
+      ]},
+      { id: 102, clientId: 1, numero: "CMD-2024-102", date: "2024-01-28", livraison: "2024-02-03", montant: 2100.00, statut: "Livrée", type: "Ponctuelle", items: [
+        { nom: "Potage du jour", quantite: "15L", prix: 120 },
+        { nom: "Sandwich club", quantite: "30 unités", prix: 300 }
+      ]},
+      { id: 103, clientId: 2, numero: "CMD-2024-103", date: "2024-02-02", livraison: "2024-02-04", montant: 5670.00, statut: "Confirmée", type: "Récurrente", items: [
+        { nom: "Quiche lorraine", quantite: "40 portions", prix: 400 },
+        { nom: "Tarte aux pommes", quantite: "20 unités", prix: 300 }
+      ]}
+    ];
+
+    const mockProduits = [
+      { id: 1, nom: "Sauce bolognaise maison", categorie: "Sauces", prix: 15.00, unite: "Litre", stock: 45, allergenes: ["Gluten"], description: "Sauce traditionnelle mijotée 4 heures" },
+      { id: 2, nom: "Pâtes fraîches aux œufs", categorie: "Pâtes", prix: 10.00, unite: "kg", stock: 120, allergenes: ["Gluten", "Œufs"], description: "Pâtes artisanales du jour" },
+      { id: 3, nom: "Salade César", categorie: "Salades", prix: 10.00, unite: "Portion", stock: 80, allergenes: ["Poisson", "Œufs", "Gluten"], description: "Notre recette signature" },
+      { id: 4, nom: "Potage du jour", categorie: "Soupes", prix: 8.00, unite: "Litre", stock: 30, allergenes: [], description: "Varie selon les légumes de saison" },
+      { id: 5, nom: "Quiche lorraine", categorie: "Plats", prix: 10.00, unite: "Portion", stock: 50, allergenes: ["Gluten", "Œufs", "Lait"], description: "Recette traditionnelle française" }
+    ];
+
+    const mockFournisseurs = [
+      { id: 1, nom: "Distribution Alimentaire Québec", contact: "Robert Dubois", telephone: "(514) 555-1111", email: "commandes@daq.ca", delaiLivraison: 2 },
+      { id: 2, nom: "Metro Professionnel", contact: "Sylvie Martin", telephone: "(450) 555-2222", email: "pro@metro.ca", delaiLivraison: 1 },
+      { id: 3, nom: "Ferme Biologique St-Jean", contact: "Paul Lefebvre", telephone: "(450) 555-3333", email: "info@fermestjean.ca", delaiLivraison: 3 },
+      { id: 4, nom: "Boulangerie Artisanale", contact: "Marc Boulanger", telephone: "(514) 555-4444", email: "pain@boulangerieartisanale.ca", delaiLivraison: 1 },
+      { id: 5, nom: "Produits Laitiers Excellence", contact: "Diane Larose", telephone: "(418) 555-5555", email: "commandes@laiterie.ca", delaiLivraison: 2 }
+    ];
+
+    const mockRecettes = [
+      { id: 1, nom: "Sauce bolognaise maison", rendement: "10L", tempsCuisson: "4h", cout: 45.00, prixSuggere: 150.00, ingredients: [
+        { nom: "Bœuf haché", quantite: 3, unite: "kg", cout: 30 },
+        { nom: "Tomates concassées", quantite: 5, unite: "L", cout: 10 },
+        { nom: "Oignon", quantite: 2, unite: "kg", cout: 3 },
+        { nom: "Ail", quantite: 200, unite: "g", cout: 2 }
+      ], allergenes: ["Gluten"], etapes: ["Faire revenir les oignons", "Ajouter la viande", "Mijoter 4 heures"] },
+      { id: 2, nom: "Pâtes fraîches aux œufs", rendement: "5kg", tempsCuisson: "30min", cout: 15.00, prixSuggere: 50.00, ingredients: [
+        { nom: "Farine", quantite: 4, unite: "kg", cout: 8 },
+        { nom: "Œufs", quantite: 20, unite: "unités", cout: 7 }
+      ], allergenes: ["Gluten", "Œufs"], etapes: ["Mélanger farine et œufs", "Pétrir 10 minutes", "Laisser reposer", "Laminer"] }
+    ];
+
+    const mockInventaire = [
+      { id: 1, nom: "Farine tout usage", categorie: "Sec", stock: 80, unite: "kg", lot: "LOT-2024-001", peremption: "2024-12-31", fournisseur: "Metro", emplacement: "Réserve A-3" },
+      { id: 2, nom: "Bœuf haché", categorie: "Viande", stock: 45, unite: "kg", lot: "LOT-2024-045", peremption: "2024-02-10", fournisseur: "Distribution Alimentaire Québec", emplacement: "Frigo #1" },
+      { id: 3, nom: "Tomates concassées", categorie: "Conserve", stock: 120, unite: "L", lot: "LOT-2024-023", peremption: "2025-06-30", fournisseur: "Metro", emplacement: "Réserve B-2" },
+      { id: 4, nom: "Œufs frais", categorie: "Frais", stock: 30, unite: "douzaines", lot: "LOT-2024-067", peremption: "2024-02-15", fournisseur: "Ferme Biologique St-Jean", emplacement: "Frigo #2" },
+      { id: 5, nom: "Crème 35%", categorie: "Produits laitiers", stock: 25, unite: "L", lot: "LOT-2024-089", peremption: "2024-02-08", fournisseur: "Produits Laitiers Excellence", emplacement: "Frigo #1" }
+    ];
+
+    const mockSoumissions = [
+      { id: 1, numero: "SOUM-2024-001", client: "Université de Montréal", date: "2024-02-01", evenement: "Colloque scientifique", dateEvenement: "2024-03-15", convives: 150, montant: 4500.00, statut: "Envoyée", marge: 65 },
+      { id: 2, numero: "SOUM-2024-002", client: "Hydro-Québec", date: "2024-01-30", evenement: "Réunion conseil", dateEvenement: "2024-02-20", convives: 50, montant: 1500.00, statut: "Acceptée", marge: 62 },
+      { id: 3, numero: "SOUM-2024-003", client: "Banque Nationale", date: "2024-02-02", evenement: "Formation employés", dateEvenement: "2024-02-25", convives: 80, montant: 2400.00, statut: "Brouillon", marge: 68 },
+      { id: 4, numero: "SOUM-2024-004", client: "CGI Inc.", date: "2024-01-28", evenement: "Party de bureau", dateEvenement: "2024-03-01", convives: 200, montant: 6000.00, statut: "Refusée", marge: 60 },
+      { id: 5, numero: "SOUM-2024-005", client: "Bombardier", date: "2024-02-03", evenement: "Lancement produit", dateEvenement: "2024-04-10", convives: 300, montant: 12000.00, statut: "En négociation", marge: 70 }
+    ];
+
+    const mockEvenements = [
+      { id: 1, soumissionId: 2, client: "Hydro-Québec", date: "2024-02-20", heure: "12:00", lieu: "Siège social - Salle Olympe", convives: 50, statut: "Confirmé", responsable: "Marie Lavoie" },
+      { id: 2, soumissionId: null, client: "Restaurant Chez Marcel", date: "2024-02-05", heure: "06:00", lieu: "Livraison", convives: 0, statut: "En préparation", responsable: "Pierre Gagnon" },
+      { id: 3, soumissionId: null, client: "Épicerie Gagnon & Fils", date: "2024-02-04", heure: "07:00", lieu: "Livraison", convives: 0, statut: "Confirmé", responsable: "Jean Tremblay" }
+    ];
+
+    const mockEmployes = [
+      { id: 1, nom: "Marie Lavoie", poste: "Chef cuisinière", telephone: "(514) 555-1234", tauxHoraire: 28.00, statut: "Actif" },
+      { id: 2, nom: "Pierre Gagnon", poste: "Cuisinier", telephone: "(514) 555-2345", tauxHoraire: 22.00, statut: "Actif" },
+      { id: 3, nom: "Jean Tremblay", poste: "Aide-cuisinier", telephone: "(514) 555-3456", tauxHoraire: 18.00, statut: "Actif" },
+      { id: 4, nom: "Sophie Bouchard", poste: "Pâtissière", telephone: "(514) 555-4567", tauxHoraire: 25.00, statut: "Actif" },
+      { id: 5, nom: "Marc Dubois", poste: "Livreur", telephone: "(514) 555-5678", tauxHoraire: 20.00, statut: "Actif" }
+    ];
+
+    // ÉTAT DE NAVIGATION 5 NIVEAUX (OBLIGATOIRE)
+    function App() {
+      // Navigation multi-niveaux
+      const [view, setView] = React.useState({
+        screen: 'list',        // 'list' | 'detail' | 'sublist' | 'subdetail' | 'subedit' | 'edit'
+        entityType: null,      // 'client' | 'commande' | 'produit' etc.
+        entityId: null,        // ID de l'entité principale
+        subEntityType: null,   // 'commande' | 'soumission' etc.
+        subEntityId: null,     // ID de la sous-entité
+      });
+
+      const [activeTab, setActiveTab] = React.useState('dashboard');
+      const [showMobileMenu, setShowMobileMenu] = React.useState(false);
+
+      // FONCTIONS DE NAVIGATION 5 NIVEAUX (OBLIGATOIRE)
+      // Niveau 1: Liste principale
+      const goToList = (type) => {
+        setView({ screen: 'list', entityType: type, entityId: null, subEntityType: null, subEntityId: null });
+        setActiveTab(type === 'client' ? 'clients' : type === 'commande' ? 'commandes' : type === 'produit' ? 'produits' : activeTab);
+      };
+
+      // Niveau 2: Détail entité principale
+      const goToDetail = (type, id) => setView({
+        screen: 'detail', entityType: type, entityId: id, subEntityType: null, subEntityId: null
+      });
+
+      // Niveau 3: Sous-liste OU édition entité principale
+      const goToSubList = (parentType, parentId, subType) => setView({
+        screen: 'sublist', entityType: parentType, entityId: parentId, subEntityType: subType, subEntityId: null
+      });
+
+      const goToEdit = (type, id) => setView({
+        screen: 'edit', entityType: type, entityId: id, subEntityType: null, subEntityId: null
+      });
+
+      // Niveau 4: Détail sous-entité
+      const goToSubDetail = (parentType, parentId, subType, subId) => setView({
+        screen: 'subdetail', entityType: parentType, entityId: parentId, subEntityType: subType, subEntityId: subId
+      });
+
+      // Niveau 5: Édition sous-entité
+      const goToSubEdit = (parentType, parentId, subType, subId) => setView({
+        screen: 'subedit', entityType: parentType, entityId: parentId, subEntityType: subType, subEntityId: subId
+      });
+
+      // État pour les modals et formulaires
+      const [showNewModal, setShowNewModal] = React.useState(false);
+      const [formData, setFormData] = React.useState({});
+
+      // Données mockées pour graphiques
+      const revenusData = [
+        { mois: 'Sept', montant: 45000 },
+        { mois: 'Oct', montant: 52000 },
+        { mois: 'Nov', montant: 48000 },
+        { mois: 'Déc', montant: 65000 },
+        { mois: 'Jan', montant: 42000 },
+        { mois: 'Fév', montant: 58000 }
+      ];
+
+      const categoriesData = [
+        { name: 'Sauces', value: 35, color: '#000000' },
+        { name: 'Plats', value: 25, color: '#333333' },
+        { name: 'Salades', value: 20, color: '#666666' },
+        { name: 'Soupes', value: 12, color: '#999999' },
+        { name: 'Desserts', value: 8, color: '#CCCCCC' }
+      ];
+
+      // Composant BackButton (OBLIGATOIRE sur pages détail)
+      const BackButton = ({ onClick, label = "Retour" }) => (
+        <button
+          onClick={onClick}
+          className="flex items-center gap-2 text-gray-400 hover:text-gray-100 mb-6 transition-colors duration-200"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          <span className="font-display">{label}</span>
+        </button>
+      );
+
+      // Composant Card avec effets visuels
+      const Card = ({ children, className = "", onClick = null }) => (
+        <div
+          onClick={onClick}
+          className={`bg-gray-800 border border-gray-700 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 ${onClick ? 'cursor-pointer hover:border-gray-600' : ''} ${className}`}
+        >
+          {children}
+        </div>
+      );
+
+      // Composant Button élégant
+      const Button = ({ children, variant = "primary", onClick, className = "" }) => {
+        const baseStyle = "px-6 py-2.5 rounded-md font-display font-medium transition-all duration-200 flex items-center gap-2";
+        const variants = {
+          primary: "bg-black text-white hover:bg-gray-900 hover:shadow-lg",
+          secondary: "bg-gray-700 text-gray-100 hover:bg-gray-600",
+          danger: "bg-red-900 text-white hover:bg-red-800",
+          ghost: "bg-transparent text-gray-300 hover:bg-gray-700 hover:text-white"
+        };
+        return (
+          <button
+            onClick={onClick}
+            className={`${baseStyle} ${variants[variant]} ${className}`}
+          >
+            {children}
+          </button>
+        );
+      };
+
+      // Composant Badge
+      const Badge = ({ children, variant = "default" }) => {
+        const variants = {
+          default: "bg-gray-700 text-gray-300",
+          success: "bg-green-900 text-green-300",
+          warning: "bg-yellow-900 text-yellow-300",
+          danger: "bg-red-900 text-red-300"
+        };
+        return (
+          <span className={`px-3 py-1 rounded-full text-xs font-medium ${variants[variant]}`}>
+            {children}
+          </span>
+        );
+      };
+
+      // Icône Logo personnalisée
+      const LogoIcon = () => (
+        <div className="flex items-center gap-3">
+          <img
+            src="https://lebangard.com/favicon-192x192.png"
+            alt="Le Bangard"
+            className="w-10 h-10"
+            onError={(e) => {
+              e.target.src = "https://lebangard.com/favicon-180x180.png";
+            }}
+          />
+          <span className="font-display text-2xl font-bold text-white hidden md:block">Le Bangard Inc.</span>
+        </div>
+      );
+
+      // Navigation élégante
+      const Navigation = () => (
+        <nav className={`fixed top-0 left-0 h-full bg-black w-64 transform transition-transform duration-300 z-50 ${showMobileMenu ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
+          <div className="p-6 border-b border-gray-800">
+            <LogoIcon />
+          </div>
+
+          <div className="py-6">
+            {[
+              { id: 'dashboard', label: 'Tableau de bord', icon: '📊' },
+              { id: 'clients', label: 'Clients', icon: '👥' },
+              { id: 'soumissions', label: 'Soumissions', icon: '📄' },
+              { id: 'commandes', label: 'Commandes', icon: '📦' },
+              { id: 'produits', label: 'Produits', icon: '🍽️' },
+              { id: 'inventaire', label: 'Inventaire', icon: '📋' },
+              { id: 'recettes', label: 'Recettes', icon: '📖' },
+              { id: 'fournisseurs', label: 'Fournisseurs', icon: '🚚' },
+              { id: 'employes', label: 'Employés', icon: '👨‍🍳' },
+              { id: 'evenements', label: 'Événements', icon: '📅' }
+            ].map(item => (
+              <button
+                key={item.id}
+                onClick={() => {
+                  setActiveTab(item.id);
+                  setView({ screen: 'list', entityType: null, entityId: null, subEntityType: null, subEntityId: null });
+                  setShowMobileMenu(false);
+                }}
+                className={`w-full px-6 py-3 text-left flex items-center gap-3 transition-all duration-200 ${
+                  activeTab === item.id
+                    ? 'bg-gray-900 text-white border-l-4 border-white'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-900'
+                }`}
+              >
+                <span className="text-xl">{item.icon}</span>
+                <span className="font-body">{item.label}</span>
+              </button>
+            ))}
+          </div>
+        </nav>
+      );
+
+      // Header élégant
+      const Header = () => (
+        <header className="bg-gray-900 border-b border-gray-800 px-4 md:px-8 py-4 flex items-center justify-between sticky top-0 z-40">
+          <button
+            onClick={() => setShowMobileMenu(!showMobileMenu)}
+            className="lg:hidden text-gray-300 hover:text-white"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+
+          <div className="flex-1 flex items-center justify-end gap-4">
+            <Badge variant="warning">Mode démo</Badge>
+            <div className="text-right">
+              <p className="text-sm text-gray-400">Connecté en tant que</p>
+              <p className="font-display text-white">Administrateur</p>
+            </div>
+          </div>
+        </header>
+      );
+
+      // Dashboard avec graphiques
+      const Dashboard = () => (
+        <div className="space-y-6 animate-fade-in">
+          <h1 className="text-3xl font-display font-bold text-white mb-8">Tableau de bord</h1>
+
+          {/* KPIs */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { label: "Revenus du mois", value: "58 420 $", trend: "+12%", icon: "💰" },
+              { label: "Commandes actives", value: "24", trend: "+3", icon: "📦" },
+              { label: "Clients actifs", value: "156", trend: "+8", icon: "👥" },
+              { label: "Taux de conversion", value: "68%", trend: "+5%", icon: "📈" }
+            ].map((kpi, index) => (
+              <Card key={index} className="p-6 animate-fade-in-up" style={{animationDelay: `${index * 100}ms`}}>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-gray-400 text-sm font-body">{kpi.label}</p>
+                    <p className="text-2xl font-display font-bold text-white mt-2">{kpi.value}</p>
+                    <p className="text-green-400 text-sm mt-1">
+                      <span className="inline-block transform rotate-0">↗</span> {kpi.trend}
+                    </p>
+                  </div>
+                  <span className="text-2xl opacity-50">{kpi.icon}</span>
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          {/* Graphiques */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Graphique des revenus */}
+            <Card className="p-6">
+              <h3 className="text-lg font-display font-semibold text-white mb-4">Évolution des revenus</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={revenusData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis dataKey="mois" stroke="#9CA3AF" />
+                  <YAxis stroke="#9CA3AF" />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: '8px' }}
+                    itemStyle={{ color: '#F3F4F6' }}
+                  />
+                  <Line type="monotone" dataKey="montant" stroke="#000000" strokeWidth={3} dot={{ fill: '#000000', r: 6 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </Card>
+
+            {/* Graphique des catégories */}
+            <Card className="p-6">
+              <h3 className="text-lg font-display font-semibold text-white mb-4">Répartition par catégorie</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={categoriesData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={100}
+                    paddingAngle={2}
+                    dataKey="value"
+                  >
+                    {categoriesData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: '8px' }}
+                    itemStyle={{ color: '#F3F4F6' }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="mt-4 space-y-2">
+                {categoriesData.map((cat, index) => (
+                  <div key={index} className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: cat.color }}></div>
+                      <span className="text-gray-300">{cat.name}</span>
+                    </div>
+                    <span className="text-gray-400">{cat.value}%</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+
+          {/* Activité récente */}
+          <Card className="p-6">
+            <h3 className="text-lg font-display font-semibold text-white mb-4">Activité récente</h3>
+            <div className="space-y-3">
+              {[
+                { action: "Nouvelle commande", client: "Restaurant Chez Marcel", time: "Il y a 5 min", icon: "📦" },
+                { action: "Soumission acceptée", client: "Hydro-Québec", time: "Il y a 2h", icon: "✅" },
+                { action: "Livraison complétée", client: "Épicerie Gagnon & Fils", time: "Il y a 4h", icon: "🚚" },
+                { action: "Nouveau client", client: "Café Le Petit Coin", time: "Hier", icon: "👤" }
+              ].map((activity, index) => (
+                <div key={index} className="flex items-center justify-between py-3 border-b border-gray-700 last:border-0">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">{activity.icon}</span>
+                    <div>
+                      <p className="text-white font-medium">{activity.action}</p>
+                      <p className="text-sm text-gray-400">{activity.client}</p>
+                    </div>
+                  </div>
+                  <span className="text-sm text-gray-500">{activity.time}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      );
+
+      // Liste des clients (NIVEAU 1)
+      const ClientsList = () => (
+        <div className="space-y-6 animate-fade-in">
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-3xl font-display font-bold text-white">Clients</h1>
+            <Button onClick={() => setShowNewModal(true)}>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Nouveau client
+            </Button>
+          </div>
+
+          <Card className="overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-900 border-b border-gray-700">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Client</th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider hidden md:table-cell">Contact</th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider hidden lg:table-cell">Type</th>
+                    <th className="px-6 py-4 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Total achats</th>
+                    <th className="px-6 py-4 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Solde</th>
+                    <th className="px-6 py-4 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-700">
+                  {mockClients.map((client) => (
+                    <tr
+                      key={client.id}
+                      onClick={() => goToDetail('client', client.id)}
+                      className="hover:bg-gray-800 cursor-pointer transition-colors"
+                    >
+                      <td className="px-6 py-4">
+                        <div>
+                          <p className="text-white font-medium">{client.nom}</p>
+                          <p className="text-sm text-gray-400">{client.email}</p>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 hidden md:table-cell">
+                        <div className="text-gray-300">
+                          <p>{client.contact}</p>
+                          <p className="text-sm text-gray-400">{client.telephone}</p>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 hidden lg:table-cell">
+                        <Badge>{client.type}</Badge>
+                      </td>
+                      <td className="px-6 py-4 text-right text-white font-medium">{client.totalAchats.toLocaleString()} $</td>
+                      <td className="px-6 py-4 text-right">
+                        <span className={client.solde > 0 ? 'text-yellow-400' : 'text-green-400'}>
+                          {client.solde.toLocaleString()} $
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            goToEdit('client', client.id);
+                          }}
+                          className="text-gray-400 hover:text-white transition-colors"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      );
+
+      // Détail client (NIVEAU 2)
+      const ClientDetail = ({ clientId }) => {
+        const client = mockClients.find(c => c.id === clientId);
+        if (!client) return <div className="text-white">Client non trouvé</div>;
+
+        const clientCommandes = mockCommandes.filter(cmd => cmd.clientId === clientId);
+
+        return (
+          <div className="space-y-6 animate-fade-in">
+            <BackButton onClick={() => goToList('client')} label="Retour aux clients" />
+
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-display font-bold text-white">{client.nom}</h1>
+                <p className="text-gray-400 mt-1">{client.type} • Client depuis 2021</p>
+              </div>
+              <div className="flex gap-3">
+                <Button onClick={() => goToEdit('client', clientId)}>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Modifier
+                </Button>
+                <Button variant="danger">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Supprimer
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Informations de contact */}
+              <Card className="p-6 lg:col-span-2">
+                <h3 className="text-lg font-display font-semibold text-white mb-4">Informations de contact</h3>
+                <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <dt className="text-sm font-medium text-gray-400">Contact principal</dt>
+                    <dd className="mt-1 text-white">{client.contact}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-gray-400">Téléphone</dt>
+                    <dd className="mt-1 text-white">{client.telephone}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-gray-400">Courriel</dt>
+                    <dd className="mt-1 text-white">{client.email}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-gray-400">Adresse</dt>
+                    <dd className="mt-1 text-white">{client.adresse}</dd>
+                  </div>
+                </dl>
+              </Card>
+
+              {/* Statistiques */}
+              <Card className="p-6">
+                <h3 className="text-lg font-display font-semibold text-white mb-4">Statistiques</h3>
+                <dl className="space-y-4">
+                  <div>
+                    <dt className="text-sm font-medium text-gray-400">Total des achats</dt>
+                    <dd className="mt-1 text-2xl font-bold text-white">{client.totalAchats.toLocaleString()} $</dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-gray-400">Solde courant</dt>
+                    <dd className={`mt-1 text-xl font-bold ${client.solde > 0 ? 'text-yellow-400' : 'text-green-400'}`}>
+                      {client.solde.toLocaleString()} $
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-gray-400">Limite de crédit</dt>
+                    <dd className="mt-1 text-white">{client.creditLimite.toLocaleString()} $</dd>
+                  </div>
+                </dl>
+              </Card>
+            </div>
+
+            {/* Préférences et restrictions */}
+            <Card className="p-6">
+              <h3 className="text-lg font-display font-semibold text-white mb-4">Préférences et restrictions</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-gray-400 mb-2">Allergènes à éviter</p>
+                  <div className="flex flex-wrap gap-2">
+                    {client.allergenes.length > 0 ? (
+                      client.allergenes.map((allergene, index) => (
+                        <Badge key={index} variant="danger">{allergene}</Badge>
+                      ))
+                    ) : (
+                      <span className="text-gray-500">Aucun</span>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-400 mb-2">Conditions de paiement</p>
+                  <p className="text-white">{client.conditions}</p>
+                </div>
+              </div>
+            </Card>
+
+            {/* Commandes récentes */}
+            <Card className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-display font-semibold text-white">Commandes récentes</h3>
+                <button
+                  onClick={() => goToSubList('client', clientId, 'commande')}
+                  className="text-sm text-gray-400 hover:text-white transition-colors"
+                >
+                  Voir toutes les commandes →
+                </button>
+              </div>
+
+              {clientCommandes.length > 0 ? (
+                <div className="space-y-3">
+                  {clientCommandes.slice(0, 3).map((commande) => (
+                    <div key={commande.id} className="flex items-center justify-between py-3 border-b border-gray-700 last:border-0">
+                      <div>
+                        <p className="text-white font-medium">{commande.numero}</p>
+                        <p className="text-sm text-gray-400">Livraison: {commande.livraison}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-white font-medium">{commande.montant.toLocaleString()} $</p>
+                        <Badge variant={commande.statut === 'Livrée' ? 'success' : 'warning'}>
+                          {commande.statut}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500">Aucune commande</p>
+              )}
+            </Card>
+          </div>
+        );
+      };
+
+      // Liste des commandes d'un client (NIVEAU 3)
+      const ClientCommandesList = ({ clientId }) => {
+        const client = mockClients.find(c => c.id === clientId);
+        const clientCommandes = mockCommandes.filter(cmd => cmd.clientId === clientId);
+
+        return (
+          <div className="space-y-6 animate-fade-in">
+            <BackButton onClick={() => goToDetail('client', clientId)} label={`Retour à ${client?.nom}`} />
+
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h1 className="text-3xl font-display font-bold text-white">Commandes de {client?.nom}</h1>
+                <p className="text-gray-400 mt-1">{clientCommandes.length} commande{clientCommandes.length > 1 ? 's' : ''}</p>
+              </div>
+              <Button>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Nouvelle commande
+              </Button>
+            </div>
+
+            <Card className="overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-900 border-b border-gray-700">
+                    <tr>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Numéro</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Date</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Livraison</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Type</th>
+                      <th className="px-6 py-4 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Montant</th>
+                      <th className="px-6 py-4 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Statut</th>
+                      <th className="px-6 py-4 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-700">
+                    {clientCommandes.map((commande) => (
+                      <tr
+                        key={commande.id}
+                        onClick={() => goToSubDetail('client', clientId, 'commande', commande.id)}
+                        className="hover:bg-gray-800 cursor-pointer transition-colors"
+                      >
+                        <td className="px-6 py-4 text-white font-medium">{commande.numero}</td>
+                        <td className="px-6 py-4 text-gray-300">{commande.date}</td>
+                        <td className="px-6 py-4 text-gray-300">{commande.livraison}</td>
+                        <td className="px-6 py-4">
+                          <Badge>{commande.type}</Badge>
+                        </td>
+                        <td className="px-6 py-4 text-right text-white font-medium">{commande.montant.toLocaleString()} $</td>
+                        <td className="px-6 py-4 text-center">
+                          <Badge variant={commande.statut === 'Livrée' ? 'success' : 'warning'}>
+                            {commande.statut}
+                          </Badge>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              goToSubEdit('client', clientId, 'commande', commande.id);
+                            }}
+                            className="text-gray-400 hover:text-white transition-colors"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </div>
+        );
+      };
+
+      // Détail commande (NIVEAU 4)
+      const CommandeDetail = ({ commandeId, parentType, parentId }) => {
+        const commande = mockCommandes.find(c => c.id === commandeId);
+        const client = mockClients.find(c => c.id === commande?.clientId);
+
+        if (!commande) return <div className="text-white">Commande non trouvée</div>;
+
+        return (
+          <div className="space-y-6 animate-fade-in">
+            <BackButton
+              onClick={() => goToSubList(parentType, parentId, 'commande')}
+              label="Retour aux commandes"
+            />
+
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-display font-bold text-white">{commande.numero}</h1>
+                <p className="text-gray-400 mt-1">{client?.nom} • {commande.date}</p>
+              </div>
+              <div className="flex gap-3">
+                <Button onClick={() => goToSubEdit(parentType, parentId, 'commande', commandeId)}>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Modifier
+                </Button>
+                <Button variant="secondary">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                  </svg>
+                  Imprimer BL
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Informations principales */}
+              <Card className="p-6 lg:col-span-2">
+                <h3 className="text-lg font-display font-semibold text-white mb-4">Détails de la commande</h3>
+                <dl className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div>
+                    <dt className="text-sm font-medium text-gray-400">Type de commande</dt>
+                    <dd className="mt-1">
+                      <Badge>{commande.type}</Badge>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-gray-400">Statut</dt>
+                    <dd className="mt-1">
+                      <Badge variant={commande.statut === 'Livrée' ? 'success' : 'warning'}>
+                        {commande.statut}
+                      </Badge>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-gray-400">Date de commande</dt>
+                    <dd className="mt-1 text-white">{commande.date}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-gray-400">Date de livraison</dt>
+                    <dd className="mt-1 text-white">{commande.livraison}</dd>
+                  </div>
+                </dl>
+
+                <h4 className="text-md font-display font-semibold text-white mb-3">Articles commandés</h4>
+                <div className="space-y-2">
+                  {commande.items.map((item, index) => (
+                    <div key={index} className="flex items-center justify-between py-2 border-b border-gray-700 last:border-0">
+                      <div>
+                        <p className="text-white">{item.nom}</p>
+                        <p className="text-sm text-gray-400">{item.quantite}</p>
+                      </div>
+                      <p className="text-white font-medium">{item.prix.toLocaleString()} $</p>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+
+              {/* Résumé financier */}
+              <Card className="p-6">
+                <h3 className="text-lg font-display font-semibold text-white mb-4">Résumé</h3>
+                <dl className="space-y-3">
+                  <div className="flex justify-between">
+                    <dt className="text-gray-400">Sous-total</dt>
+                    <dd className="text-white">{(commande.montant / 1.15).toFixed(2)} $</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-gray-400">Taxes</dt>
+                    <dd className="text-white">{(commande.montant - commande.montant / 1.15).toFixed(2)} $</dd>
+                  </div>
+                  <div className="flex justify-between pt-3 border-t border-gray-700">
+                    <dt className="text-white font-medium">Total</dt>
+                    <dd className="text-white font-bold text-xl">{commande.montant.toLocaleString()} $</dd>
+                  </div>
+                </dl>
+
+                <div className="mt-6">
+                  <Button className="w-full" variant="primary">
+                    Générer facture
+                  </Button>
+                </div>
+              </Card>
+            </div>
+
+            {/* Actions et historique */}
+            <Card className="p-6">
+              <h3 className="text-lg font-display font-semibold text-white mb-4">Historique</h3>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 text-sm">
+                  <div className="w-2 h-2 rounded-full bg-green-400"></div>
+                  <p className="text-gray-300">Commande créée</p>
+                  <p className="text-gray-500 ml-auto">{commande.date} 09:45</p>
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <div className="w-2 h-2 rounded-full bg-blue-400"></div>
+                  <p className="text-gray-300">Commande confirmée</p>
+                  <p className="text-gray-500 ml-auto">{commande.date} 10:15</p>
+                </div>
+                {commande.statut === 'Livrée' && (
+                  <div className="flex items-center gap-3 text-sm">
+                    <div className="w-2 h-2 rounded-full bg-green-400"></div>
+                    <p className="text-gray-300">Commande livrée</p>
+                    <p className="text-gray-500 ml-auto">{commande.livraison} 11:30</p>
+                  </div>
+                )}
+              </div>
+            </Card>
+          </div>
+        );
+      };
+
+      // Édition commande (NIVEAU 5)
+      const CommandeEdit = ({ commandeId, parentType, parentId }) => {
+        const commande = mockCommandes.find(c => c.id === commandeId);
+        const [editData, setEditData] = React.useState(commande || {});
+
+        if (!commande) return <div className="text-white">Commande non trouvée</div>;
+
+        return (
+          <div className="space-y-6 animate-fade-in">
+            <BackButton
+              onClick={() => goToSubDetail(parentType, parentId, 'commande', commandeId)}
+              label="Annuler les modifications"
+            />
+
+            <div>
+              <h1 className="text-3xl font-display font-bold text-white">Modifier la commande</h1>
+              <p className="text-gray-400 mt-1">{commande.numero}</p>
+            </div>
+
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              // Sauvegarder et retourner au détail
+              goToSubDetail(parentType, parentId, 'commande', commandeId);
+            }}>
+              <Card className="p-6 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Date de livraison
+                    </label>
+                    <input
+                      type="date"
+                      value={editData.livraison}
+                      onChange={(e) => setEditData({...editData, livraison: e.target.value})}
+                      className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-md text-white focus:ring-2 focus:ring-black focus:border-black"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Statut
+                    </label>
+                    <select
+                      value={editData.statut}
+                      onChange={(e) => setEditData({...editData, statut: e.target.value})}
+                      className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-md text-white focus:ring-2 focus:ring-black focus:border-black"
+                    >
+                      <option value="Confirmée">Confirmée</option>
+                      <option value="En préparation">En préparation</option>
+                      <option value="Prête">Prête</option>
+                      <option value="En livraison">En livraison</option>
+                      <option value="Livrée">Livrée</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-display font-semibold text-white mb-4">Articles de la commande</h3>
+                  <div className="space-y-4">
+                    {editData.items?.map((item, index) => (
+                      <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-900 rounded-lg">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-400 mb-1">Article</label>
+                          <input
+                            type="text"
+                            value={item.nom}
+                            onChange={(e) => {
+                              const newItems = [...editData.items];
+                              newItems[index].nom = e.target.value;
+                              setEditData({...editData, items: newItems});
+                            }}
+                            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-400 mb-1">Quantité</label>
+                          <input
+                            type="text"
+                            value={item.quantite}
+                            onChange={(e) => {
+                              const newItems = [...editData.items];
+                              newItems[index].quantite = e.target.value;
+                              setEditData({...editData, items: newItems});
+                            }}
+                            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-400 mb-1">Prix</label>
+                          <input
+                            type="number"
+                            value={item.prix}
+                            onChange={(e) => {
+                              const newItems = [...editData.items];
+                              newItems[index].prix = parseFloat(e.target.value);
+                              setEditData({...editData, items: newItems});
+                            }}
+                            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white text-sm"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    className="mt-4 text-sm text-gray-400 hover:text-white transition-colors"
+                  >
+                    + Ajouter un article
+                  </button>
+                </div>
+
+                <div className="flex gap-4 pt-6 border-t border-gray-700">
+                  <Button type="submit">
+                    Enregistrer les modifications
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => goToSubDetail(parentType, parentId, 'commande', commandeId)}
+                  >
+                    Annuler
+                  </Button>
+                </div>
+              </Card>
+            </form>
+          </div>
+        );
+      };
+
+      // Édition client (NIVEAU 3)
+      const ClientEdit = ({ clientId }) => {
+        const client = mockClients.find(c => c.id === clientId);
+        const [editData, setEditData] = React.useState(client || {});
+
+        if (!client) return <div className="text-white">Client non trouvé</div>;
+
+        return (
+          <div className="space-y-6 animate-fade-in">
+            <BackButton onClick={() => goToDetail('client', clientId)} label="Annuler les modifications" />
+
+            <div>
+              <h1 className="text-3xl font-display font-bold text-white">Modifier le client</h1>
+              <p className="text-gray-400 mt-1">{client.nom}</p>
+            </div>
+
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              // Sauvegarder et retourner au détail
+              goToDetail('client', clientId);
+            }}>
+              <Card className="p-6 space-y-6">
+                <h3 className="text-lg font-display font-semibold text-white">Informations générales</h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Nom de l'entreprise
+                    </label>
+                    <input
+                      type="text"
+                      value={editData.nom}
+                      onChange={(e) => setEditData({...editData, nom: e.target.value})}
+                      className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-md text-white focus:ring-2 focus:ring-black focus:border-black"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Contact principal
+                    </label>
+                    <input
+                      type="text"
+                      value={editData.contact}
+                      onChange={(e) => setEditData({...editData, contact: e.target.value})}
+                      className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-md text-white focus:ring-2 focus:ring-black focus:border-black"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Courriel
+                    </label>
+                    <input
+                      type="email"
+                      value={editData.email}
+                      onChange={(e) => setEditData({...editData, email: e.target.value})}
+                      className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-md text-white focus:ring-2 focus:ring-black focus:border-black"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Téléphone
+                    </label>
+                    <input
+                      type="tel"
+                      value={editData.telephone}
+                      onChange={(e) => setEditData({...editData, telephone: e.target.value})}
+                      className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-md text-white focus:ring-2 focus:ring-black focus:border-black"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Adresse
+                  </label>
+                  <input
+                    type="text"
+                    value={editData.adresse}
+                    onChange={(e) => setEditData({...editData, adresse: e.target.value})}
+                    className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-md text-white focus:ring-2 focus:ring-black focus:border-black"
+                  />
+                </div>
+
+                <h3 className="text-lg font-display font-semibold text-white pt-6">Paramètres commerciaux</h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Type de client
+                    </label>
+                    <select
+                      value={editData.type}
+                      onChange={(e) => setEditData({...editData, type: e.target.value})}
+                      className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-md text-white focus:ring-2 focus:ring-black focus:border-black"
+                    >
+                      <option value="B2B">B2B</option>
+                      <option value="B2C">B2C</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Conditions de paiement
+                    </label>
+                    <select
+                      value={editData.conditions}
+                      onChange={(e) => setEditData({...editData, conditions: e.target.value})}
+                      className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-md text-white focus:ring-2 focus:ring-black focus:border-black"
+                    >
+                      <option value="Paiement comptant">Paiement comptant</option>
+                      <option value="Net 30">Net 30</option>
+                      <option value="Net 45">Net 45</option>
+                      <option value="Net 60">Net 60</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Limite de crédit ($)
+                    </label>
+                    <input
+                      type="number"
+                      value={editData.creditLimite}
+                      onChange={(e) => setEditData({...editData, creditLimite: parseFloat(e.target.value)})}
+                      className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-md text-white focus:ring-2 focus:ring-black focus:border-black"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Allergènes à éviter
+                  </label>
+                  <p className="text-xs text-gray-500 mb-2">Séparez par des virgules</p>
+                  <input
+                    type="text"
+                    value={editData.allergenes?.join(', ')}
+                    onChange={(e) => setEditData({
+                      ...editData,
+                      allergenes: e.target.value.split(',').map(a => a.trim()).filter(a => a)
+                    })}
+                    className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-md text-white focus:ring-2 focus:ring-black focus:border-black"
+                    placeholder="Ex: Noix, Gluten, Lactose"
+                  />
+                </div>
+
+                <div className="flex gap-4 pt-6 border-t border-gray-700">
+                  <Button type="submit">
+                    Enregistrer les modifications
+                  </Button>
+                  <Button type="button" variant="ghost" onClick={() => goToDetail('client', clientId)}>
+                    Annuler
+                  </Button>
+                </div>
+              </Card>
+            </form>
+          </div>
+        );
+      };
+
+      // AUTRES LISTES (niveau 1)
+
+      // Liste des produits
+      const ProduitsList = () => (
+        <div className="space-y-6 animate-fade-in">
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-3xl font-display font-bold text-white">Produits</h1>
+            <Button>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Nouveau produit
+            </Button>
+          </div>
+
+          <Card className="overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-900 border-b border-gray-700">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Produit</th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Catégorie</th>
+                    <th className="px-6 py-4 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Stock</th>
+                    <th className="px-6 py-4 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Prix</th>
+                    <th className="px-6 py-4 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Allergènes</th>
+                    <th className="px-6 py-4 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-700">
+                  {mockProduits.map((produit) => (
+                    <tr
+                      key={produit.id}
+                      onClick={() => goToDetail('produit', produit.id)}
+                      className="hover:bg-gray-800 cursor-pointer transition-colors"
+                    >
+                      <td className="px-6 py-4">
+                        <div>
+                          <p className="text-white font-medium">{produit.nom}</p>
+                          <p className="text-sm text-gray-400">{produit.description}</p>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <Badge>{produit.categorie}</Badge>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <span className={`font-medium ${produit.stock < 20 ? 'text-red-400' : 'text-green-400'}`}>
+                          {produit.stock} {produit.unite}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right text-white font-medium">
+                        {produit.prix.toFixed(2)} $/{produit.unite}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <div className="flex flex-wrap gap-1 justify-center">
+                          {produit.allergenes.slice(0, 2).map((allergene, index) => (
+                            <Badge key={index} variant="danger">{allergene}</Badge>
+                          ))}
+                          {produit.allergenes.length > 2 && (
+                            <span className="text-xs text-gray-500">+{produit.allergenes.length - 2}</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); }}
+                          className="text-gray-400 hover:text-white transition-colors"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      );
+
+      // Liste des soumissions
+      const SoumissionsList = () => (
+        <div className="space-y-6 animate-fade-in">
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-3xl font-display font-bold text-white">Soumissions</h1>
+            <Button>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Nouvelle soumission
+            </Button>
+          </div>
+
+          <Card className="overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-900 border-b border-gray-700">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Numéro</th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Client</th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Événement</th>
+                    <th className="px-6 py-4 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Convives</th>
+                    <th className="px-6 py-4 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Montant</th>
+                    <th className="px-6 py-4 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Marge</th>
+                    <th className="px-6 py-4 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Statut</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-700">
+                  {mockSoumissions.map((soumission) => (
+                    <tr
+                      key={soumission.id}
+                      onClick={() => goToDetail('soumission', soumission.id)}
+                      className="hover:bg-gray-800 cursor-pointer transition-colors"
+                    >
+                      <td className="px-6 py-4 text-white font-medium">{soumission.numero}</td>
+                      <td className="px-6 py-4">
+                        <div>
+                          <p className="text-white">{soumission.client}</p>
+                          <p className="text-sm text-gray-400">{soumission.dateEvenement}</p>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-gray-300">{soumission.evenement}</td>
+                      <td className="px-6 py-4 text-center text-white">{soumission.convives}</td>
+                      <td className="px-6 py-4 text-right text-white font-medium">{soumission.montant.toLocaleString()} $</td>
+                      <td className="px-6 py-4 text-center">
+                        <span className={`font-medium ${soumission.marge >= 65 ? 'text-green-400' : 'text-yellow-400'}`}>
+                          {soumission.marge}%
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <Badge variant={
+                          soumission.statut === 'Acceptée' ? 'success' :
+                          soumission.statut === 'Refusée' ? 'danger' :
+                          soumission.statut === 'Envoyée' ? 'warning' : 'default'
+                        }>
+                          {soumission.statut}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      );
+
+      // Liste de l'inventaire
+      const InventaireList = () => (
+        <div className="space-y-6 animate-fade-in">
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-3xl font-display font-bold text-white">Inventaire</h1>
+            <div className="flex gap-3">
+              <Button variant="secondary">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                Importer
+              </Button>
+              <Button>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Nouvelle entrée
+              </Button>
+            </div>
+          </div>
+
+          {/* Alertes inventaire */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card className="p-4 border-l-4 border-red-500">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">⚠️</span>
+                <div>
+                  <p className="text-white font-medium">3 articles proches de la péremption</p>
+                  <p className="text-sm text-gray-400">Action requise dans les 7 prochains jours</p>
+                </div>
+              </div>
+            </Card>
+            <Card className="p-4 border-l-4 border-yellow-500">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">📦</span>
+                <div>
+                  <p className="text-white font-medium">5 articles en rupture de stock</p>
+                  <p className="text-sm text-gray-400">Commander dès que possible</p>
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          <Card className="overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-900 border-b border-gray-700">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Article</th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Lot</th>
+                    <th className="px-6 py-4 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Stock</th>
+                    <th className="px-6 py-4 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Péremption</th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Emplacement</th>
+                    <th className="px-6 py-4 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-700">
+                  {mockInventaire.map((item) => {
+                    const daysUntilExpiry = Math.floor((new Date(item.peremption) - new Date()) / (1000 * 60 * 60 * 24));
+                    return (
+                      <tr
+                        key={item.id}
+                        className="hover:bg-gray-800 transition-colors"
+                      >
+                        <td className="px-6 py-4">
+                          <div>
+                            <p className="text-white font-medium">{item.nom}</p>
+                            <p className="text-sm text-gray-400">{item.categorie}</p>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-gray-300">{item.lot}</td>
+                        <td className="px-6 py-4 text-center">
+                          <span className={`font-medium ${item.stock < 30 ? 'text-red-400' : 'text-green-400'}`}>
+                            {item.stock} {item.unite}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <div>
+                            <p className={`${daysUntilExpiry <= 7 ? 'text-red-400' : 'text-gray-300'}`}>
+                              {item.peremption}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {daysUntilExpiry > 0 ? `${daysUntilExpiry}j restants` : 'Expiré'}
+                            </p>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-gray-300">{item.emplacement}</td>
+                        <td className="px-6 py-4 text-center">
+                          <button className="text-gray-400 hover:text-white transition-colors">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      );
+
+      // Liste des recettes
+      const RecettesList = () => (
+        <div className="space-y-6 animate-fade-in">
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-3xl font-display font-bold text-white">Recettes</h1>
+            <Button>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Nouvelle recette
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {mockRecettes.map((recette) => {
+              const marge = ((recette.prixSuggere - recette.cout) / recette.prixSuggere * 100).toFixed(0);
+              return (
+                <Card
+                  key={recette.id}
+                  className="p-6 hover:shadow-xl transition-all duration-300 cursor-pointer"
+                  onClick={() => goToDetail('recette', recette.id)}
+                >
+                  <h3 className="text-lg font-display font-semibold text-white mb-2">{recette.nom}</h3>
+
+                  <div className="space-y-3 mb-4">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-400">Rendement</span>
+                      <span className="text-white">{recette.rendement}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-400">Temps cuisson</span>
+                      <span className="text-white">{recette.tempsCuisson}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-400">Coût</span>
+                      <span className="text-white">{recette.cout.toFixed(2)} $</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-400">Prix suggéré</span>
+                      <span className="text-white font-medium">{recette.prixSuggere.toFixed(2)} $</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-700">
+                    <Badge variant={marge >= 65 ? 'success' : 'warning'}>
+                      Marge {marge}%
+                    </Badge>
+                    <div className="flex gap-1">
+                      {recette.allergenes.map((allergene, index) => (
+                        <span key={index} className="text-xs text-red-400">
+                          {allergene}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      );
+
+      // Liste des fournisseurs
+      const FournisseursList = () => (
+        <div className="space-y-6 animate-fade-in">
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-3xl font-display font-bold text-white">Fournisseurs</h1>
+            <Button>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Nouveau fournisseur
+            </Button>
+          </div>
+
+          <Card className="overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-900 border-b border-gray-700">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Fournisseur</th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Contact</th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Téléphone</th>
+                    <th className="px-6 py-4 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Délai livraison</th>
+                    <th className="px-6 py-4 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-700">
+                  {mockFournisseurs.map((fournisseur) => (
+                    <tr
+                      key={fournisseur.id}
+                      onClick={() => goToDetail('fournisseur', fournisseur.id)}
+                      className="hover:bg-gray-800 cursor-pointer transition-colors"
+                    >
+                      <td className="px-6 py-4">
+                        <div>
+                          <p className="text-white font-medium">{fournisseur.nom}</p>
+                          <p className="text-sm text-gray-400">{fournisseur.email}</p>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-gray-300">{fournisseur.contact}</td>
+                      <td className="px-6 py-4 text-gray-300">{fournisseur.telephone}</td>
+                      <td className="px-6 py-4 text-center">
+                        <Badge>{fournisseur.delaiLivraison} jour{fournisseur.delaiLivraison > 1 ? 's' : ''}</Badge>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); }}
+                          className="text-gray-400 hover:text-white transition-colors"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      );
+
+      // Liste des employés
+      const EmployesList = () => (
+        <div className="space-y-6 animate-fade-in">
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-3xl font-display font-bold text-white">Employés</h1>
+            <Button>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Nouvel employé
+            </Button>
+          </div>
+
+          <Card className="overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-900 border-b border-gray-700">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Employé</th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Poste</th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Téléphone</th>
+                    <th className="px-6 py-4 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Taux horaire</th>
+                    <th className="px-6 py-4 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Statut</th>
+                    <th className="px-6 py-4 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-700">
+                  {mockEmployes.map((employe) => (
+                    <tr
+                      key={employe.id}
+                      onClick={() => goToDetail('employe', employe.id)}
+                      className="hover:bg-gray-800 cursor-pointer transition-colors"
+                    >
+                      <td className="px-6 py-4 text-white font-medium">{employe.nom}</td>
+                      <td className="px-6 py-4 text-gray-300">{employe.poste}</td>
+                      <td className="px-6 py-4 text-gray-300">{employe.telephone}</td>
+                      <td className="px-6 py-4 text-right text-white font-medium">{employe.tauxHoraire.toFixed(2)} $/h</td>
+                      <td className="px-6 py-4 text-center">
+                        <Badge variant="success">{employe.statut}</Badge>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); }}
+                          className="text-gray-400 hover:text-white transition-colors"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      );
+
+      // Liste des événements
+      const EvenementsList = () => (
+        <div className="space-y-6 animate-fade-in">
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-3xl font-display font-bold text-white">Événements</h1>
+            <Button>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Nouvel événement
+            </Button>
+          </div>
+
+          <Card className="overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-900 border-b border-gray-700">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Date</th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Client</th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Lieu</th>
+                    <th className="px-6 py-4 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Convives</th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Responsable</th>
+                    <th className="px-6 py-4 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Statut</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-700">
+                  {mockEvenements.map((evenement) => (
+                    <tr
+                      key={evenement.id}
+                      onClick={() => goToDetail('evenement', evenement.id)}
+                      className="hover:bg-gray-800 cursor-pointer transition-colors"
+                    >
+                      <td className="px-6 py-4">
+                        <div>
+                          <p className="text-white font-medium">{evenement.date}</p>
+                          <p className="text-sm text-gray-400">{evenement.heure}</p>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-gray-300">{evenement.client}</td>
+                      <td className="px-6 py-4 text-gray-300">{evenement.lieu}</td>
+                      <td className="px-6 py-4 text-center text-white">{evenement.convives || '-'}</td>
+                      <td className="px-6 py-4 text-gray-300">{evenement.responsable}</td>
+                      <td className="px-6 py-4 text-center">
+                        <Badge variant={evenement.statut === 'Confirmé' ? 'success' : 'warning'}>
+                          {evenement.statut}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      );
+
+      // Liste des commandes
+      const CommandesList = () => (
+        <div className="space-y-6 animate-fade-in">
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-3xl font-display font-bold text-white">Commandes</h1>
+            <Button>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Nouvelle commande
+            </Button>
+          </div>
+
+          <Card className="overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-900 border-b border-gray-700">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Numéro</th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Client</th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Date</th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Livraison</th>
+                    <th className="px-6 py-4 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Montant</th>
+                    <th className="px-6 py-4 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Statut</th>
+                    <th className="px-6 py-4 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-700">
+                  {mockCommandes.map((commande) => {
+                    const client = mockClients.find(c => c.id === commande.clientId);
+                    return (
+                      <tr
+                        key={commande.id}
+                        onClick={() => goToDetail('commande', commande.id)}
+                        className="hover:bg-gray-800 cursor-pointer transition-colors"
+                      >
+                        <td className="px-6 py-4 text-white font-medium">{commande.numero}</td>
+                        <td className="px-6 py-4 text-gray-300">{client?.nom}</td>
+                        <td className="px-6 py-4 text-gray-300">{commande.date}</td>
+                        <td className="px-6 py-4 text-gray-300">{commande.livraison}</td>
+                        <td className="px-6 py-4 text-right text-white font-medium">{commande.montant.toLocaleString()} $</td>
+                        <td className="px-6 py-4 text-center">
+                          <Badge variant={commande.statut === 'Livrée' ? 'success' : 'warning'}>
+                            {commande.statut}
+                          </Badge>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); }}
+                            className="text-gray-400 hover:text-white transition-colors"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      );
+
+      // Overlay mobile menu
+      if (showMobileMenu) {
+        React.useEffect(() => {
+          const handleClick = () => setShowMobileMenu(false);
+          document.addEventListener('click', handleClick);
+          return () => document.removeEventListener('click', handleClick);
+        }, []);
+      }
+
+      // Rendu principal
+      return (
+        <div className="min-h-screen bg-gray-900 font-body">
+          <Navigation />
+
+          <div className="lg:ml-64">
+            <Header />
+
+            <main className="p-4 md:p-8">
+              {/* RENDU CONDITIONNEL PAR ÉCRAN (OBLIGATOIRE) */}
+              {activeTab === 'dashboard' && <Dashboard />}
+
+              {/* CLIENTS - 5 NIVEAUX */}
+              {activeTab === 'clients' && (
+                <>
+                  {view.screen === 'list' && <ClientsList />}
+                  {view.screen === 'detail' && view.entityType === 'client' && (
+                    <ClientDetail clientId={view.entityId} />
+                  )}
+                  {view.screen === 'edit' && view.entityType === 'client' && (
+                    <ClientEdit clientId={view.entityId} />
+                  )}
+                  {view.screen === 'sublist' && view.entityType === 'client' && view.subEntityType === 'commande' && (
+                    <ClientCommandesList clientId={view.entityId} />
+                  )}
+                  {view.screen === 'subdetail' && view.entityType === 'client' && view.subEntityType === 'commande' && (
+                    <CommandeDetail commandeId={view.subEntityId} parentType="client" parentId={view.entityId} />
+                  )}
+                  {view.screen === 'subedit' && view.entityType === 'client' && view.subEntityType === 'commande' && (
+                    <CommandeEdit commandeId={view.subEntityId} parentType="client" parentId={view.entityId} />
+                  )}
+                </>
+              )}
+
+              {activeTab === 'soumissions' && <SoumissionsList />}
+              {activeTab === 'commandes' && <CommandesList />}
+              {activeTab === 'produits' && <ProduitsList />}
+              {activeTab === 'inventaire' && <InventaireList />}
+              {activeTab === 'recettes' && <RecettesList />}
+              {activeTab === 'fournisseurs' && <FournisseursList />}
+              {activeTab === 'employes' && <EmployesList />}
+              {activeTab === 'evenements' && <EvenementsList />}
+            </main>
+          </div>
+        </div>
+      );
+    }
+
+    // Rendu de l'application
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>

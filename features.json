@@ -1,0 +1,54 @@
+{
+  "features": [
+    {
+      "libelle": "Tableau de bord et analytics",
+      "montant": 3500,
+      "obligatoire": true
+    },
+    {
+      "libelle": "Gestion complète des clients",
+      "montant": 2800,
+      "obligatoire": true
+    },
+    {
+      "libelle": "Système de soumissions et devis",
+      "montant": 3200,
+      "obligatoire": true
+    },
+    {
+      "libelle": "Gestion des commandes et livraisons",
+      "montant": 2500,
+      "obligatoire": true
+    },
+    {
+      "libelle": "Catalogue produits et recettes",
+      "montant": 2200,
+      "obligatoire": false
+    },
+    {
+      "libelle": "Inventaire et traçabilité HACCP",
+      "montant": 3800,
+      "obligatoire": false
+    },
+    {
+      "libelle": "Gestion des fournisseurs",
+      "montant": 1800,
+      "obligatoire": false
+    },
+    {
+      "libelle": "Module employés et pointage",
+      "montant": 2400,
+      "obligatoire": false
+    },
+    {
+      "libelle": "Calendrier événements et production",
+      "montant": 2800,
+      "obligatoire": false
+    },
+    {
+      "libelle": "Intégration QuickBooks",
+      "montant": 2200,
+      "obligatoire": false
+    }
+  ]
+}
